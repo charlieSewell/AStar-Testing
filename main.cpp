@@ -2,21 +2,30 @@
 #include <fstream>
 #include <vector>
 #include <sstream>
-#include <deque>
+#include <math.h>
+#include <ctime>
 #include <GL/glut.h>
+#include <algorithm>
 
 struct Node{
-    int g,f,h;
+    float g=0;
+    float f=9999;
+    float h=0;
     int x,y,distance;
     bool isBlocked;
     Node* parent = nullptr;
-    Node(bool block,int w,int h){
-        distance = 1;
-        isBlocked = block;
-        x=w;
-        y=h;
-    }
+
+
 };
+inline bool operator < (const Node& lhs, const Node& rhs){
+    return lhs.f < rhs.f;
+}
+inline bool operator == (const Node& lhs, const Node& rhs){
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
+}
+inline bool operator != (const Node& lhs, const Node& rhs){
+    return (lhs.x != rhs.x) || (lhs.y != rhs.y);
+}
 std::vector<Node> graph;
 int width,height;
 
@@ -38,7 +47,11 @@ void CreateGraph(int width,int height){
     while(std::getline(input,temp)){
         std::stringstream ss(temp);
         while(ss >> val){
-            graph.push_back(Node(val,w,h));
+            Node temp;
+            temp.isBlocked = val;
+            temp.x = w;
+            temp.y = h;
+            graph.push_back(temp);
             if(ss.peek() == ',') ss.ignore();
             w+=1;
         }
@@ -70,6 +83,17 @@ void drawNode(float x, float y, bool isWall,bool isSelected){
         glVertex2f(x,  y+10);
     glEnd();
 }
+void drawFinalNode(float x, float y){
+    x = x*10;
+    y = y*10;
+    glColor3f(0.0f, 0.0f, 1.0f); // Red
+    glBegin(GL_QUADS);              // Each set of 4 vertices form a quad
+    glVertex2f(x,y);    // x, y
+    glVertex2f(x+10 ,y);
+    glVertex2f( x+10,  y+10);
+    glVertex2f(x,  y+10);
+    glEnd();
+}
 void drawWireNode(float x, float y){
 
     glColor3f(0.0f, 0.0f, 0.0f); // Red
@@ -80,61 +104,113 @@ void drawWireNode(float x, float y){
         glVertex2f(x,  y+10);
     glEnd();
 }
-
+void drawRoute(Node* end){
+    drawFinalNode(end->x-1,end->y-1);
+    if(end->parent != nullptr){
+        drawRoute(end->parent);
+    }
+    return;
+}
 void display(){
     glClear(GL_COLOR_BUFFER_BIT);
     for(int h=0; h < height;h++){
         for(int w=0; w < width;w++) {
             drawNode(w*10,h*10,graph.at(h * 50 + w).isBlocked,0);
             drawWireNode(w*10,h*10);
+            drawRoute(&graph.back());
         }
     }
     glutSwapBuffers();
 }
+
 static bool isValid(Node* node) {
-    if (node->isBlocked == false) {
-        if (node->x < 0 || node->y < 0 || node->x >= width || node->y >= height) {
-            return false;
+    if(node != nullptr){
+
+        if (!node->isBlocked) {
+            if (node->x <= 0 || node->y <= 0 || node->x > width || node->y > height) {
+                return false;
+            }
+            return true;
         }
-        return true;
+        return false;
     }
     return false;
 }
-void solveAStar(Node* start,Node* end){
+Node* findNodeOnList(std::vector<Node*> nodes, int x, int y){
+    for (auto & node : nodes) {
+        if (node->x == x && node->y == y) {
+            return node;
+        }
+    }
+    return nullptr;
+}
+Node* findNodeOnGraph(std::vector<Node> nodes, int x, int y){
+    int index =0;
+    for (auto & it : nodes) {
+        if(it.x == x && it.y == y){
+            return (&graph.at(index));
+        }
+        index+=1;
+    }
+    return nullptr;
+}
+
+bool comparePtrToNode(Node* a, Node* b){
+    return (a->f < b->f);
+}
+
+void solveAStar(Node *start,Node *end){
+    clock_t startTime, stopTime;
+    double totalTime;
+    startTime = clock();
     std::vector<Node*> openList;
     std::vector<Node*> closedList;
-    start->f = 0;
-    start->g = 0;
-    start->h = 0;
     openList.push_back(start);
-    Node* current;
+    Node *current = nullptr;
     while(!openList.empty()){
-        do {
-            float temp = 9999; //high enough for this example doesnt scale well
-            std::vector<Node*>::iterator itNode;
-            for (std::vector<Node*>::iterator it = openList.begin();it != openList.end(); it = next(it)) {
-                Node *n = *it;
-                if (n->f < temp) {
-                    temp = n->f;
-                    itNode = it;
-                }
-            }
-            current = *itNode;
-            openList.erase(itNode);
-        } while (isValid(current) == false);
-        //setting parents of surrounding nodes
+        std::sort(openList.begin(),openList.end(),comparePtrToNode);
+        current = openList.front();
+
+        closedList.push_back(current);
+        openList.erase(openList.begin());
         for(int i = -1; i <=1; i++){
             for(int j = -1; j <=1; j++){
-                Node* successor = &graph[((current->x -1) +i)+ (50*((current->y-1)+j))];
-                if(isValid(successor) && successor != current && successor->x > 0 && successor->y > 0){
-                    //surrounding nodes processing
-                    std::cout << "node" << successor->x << " " <<successor->y << "valid" <<std::endl;
+                Node* successor = findNodeOnGraph(graph,current->x+i,current->y+j);
+                if(isValid(successor) && successor != current ){
+                    //win condition
+                    double gNew = current->g + 1.0;
+                    double hNew = (sqrt((successor->x - end->x)*(successor->x - end->x)+ (successor->y - end->y)*(successor->y - end->y)));
+                    double fNew = gNew + hNew;
+                    if(successor->x == end->x && successor->y == end->y){
+                        successor->parent = current;
+                        stopTime = clock();
+                        totalTime = (stopTime - startTime) / (double)CLOCKS_PER_SEC;
 
+                        std::cout << "Success!! program took " << totalTime<< std::endl;
+                        return;
+                    }
 
+                    //Skip node if on closed List
+                    else if(findNodeOnList(closedList,successor->x,successor->y) == nullptr){
+                        //node isnt on open list
+                        if(findNodeOnList(openList,successor->x,successor->y) == nullptr){
+                            successor->f = fNew;
+                            successor->h  = hNew;
+                            successor->g  = gNew;
+                            successor->parent = current;
+                            openList.push_back(successor);
+                        }
+                        //node has a better G score then previously discovered
+                        if(successor->g  >= gNew){
+                            successor->f = fNew;
+                            successor->h  = hNew;
+                            successor->g  = gNew;
+                            successor->parent = current;
+                        }
+                    }
                 }
             }
         }
-
     }
 }
 
@@ -152,7 +228,7 @@ int main(int argc, char** argv) {
     glInit();
     // register callbacks
     glutDisplayFunc(display);
-    solveAStar(&graph[0],&graph.back());
+    solveAStar(&graph.front(),&graph.back());
     // enter GLUT event processing loop
     glutMainLoop();
 
