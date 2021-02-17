@@ -13,6 +13,8 @@ struct Node{
     float h=0;
     int x,y,distance;
     bool isBlocked;
+    bool isClosed = false;
+    bool isOpen = false;
     Node* parent = nullptr;
 
 
@@ -37,9 +39,9 @@ void glInit(){
     glOrtho(0, width*10, height*10, 0, 0, 1);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT || GL_DEPTH_BUFFER_BIT);
 }
-void CreateGraph(int width,int height){
+void CreateGraph(){
     std::string temp;
     int val, w =1,h=1;
     std::ifstream input("map.csv");
@@ -69,7 +71,7 @@ void DisplayGraph(int width,int height){
         std::cout << std::endl;
     }
 }
-void drawNode(float x, float y, bool isWall,bool isSelected){
+void drawNode(float x, float y, bool isWall){
     if(isWall){
         glColor3f(0.0f, 0.0f, 0.0f); // Red
     }
@@ -115,7 +117,7 @@ void display(){
     glClear(GL_COLOR_BUFFER_BIT);
     for(int h=0; h < height;h++){
         for(int w=0; w < width;w++) {
-            drawNode(w*10,h*10,graph.at(h * 50 + w).isBlocked,0);
+            drawNode(w*10,h*10,graph.at(h * 50 + w).isBlocked);
             drawWireNode(w*10,h*10);
             drawRoute(&graph.back());
         }
@@ -125,7 +127,6 @@ void display(){
 
 static bool isValid(Node* node) {
     if(node != nullptr){
-
         if (!node->isBlocked) {
             if (node->x <= 0 || node->y <= 0 || node->x > width || node->y > height) {
                 return false;
@@ -135,14 +136,6 @@ static bool isValid(Node* node) {
         return false;
     }
     return false;
-}
-Node* findNodeOnList(std::vector<Node*> nodes, int x, int y){
-    for (auto & node : nodes) {
-        if (node->x == x && node->y == y) {
-            return node;
-        }
-    }
-    return nullptr;
 }
 Node* findNodeOnGraph(std::vector<Node> nodes, int x, int y){
     int index =0;
@@ -171,16 +164,15 @@ void solveAStar(Node *start,Node *end){
         std::sort(openList.begin(),openList.end(),comparePtrToNode);
         current = openList.front();
 
-        closedList.push_back(current);
+        current->isClosed = true;
+       //closedList.push_back(current);
         openList.erase(openList.begin());
         for(int i = -1; i <=1; i++){
             for(int j = -1; j <=1; j++){
                 Node* successor = findNodeOnGraph(graph,current->x+i,current->y+j);
                 if(isValid(successor) && successor != current ){
                     //win condition
-                    double gNew = current->g + 1.0;
-                    double hNew = (sqrt((successor->x - end->x)*(successor->x - end->x)+ (successor->y - end->y)*(successor->y - end->y)));
-                    double fNew = gNew + hNew;
+
                     if(successor->x == end->x && successor->y == end->y){
                         successor->parent = current;
                         stopTime = clock();
@@ -191,13 +183,19 @@ void solveAStar(Node *start,Node *end){
                     }
 
                     //Skip node if on closed List
-                    else if(findNodeOnList(closedList,successor->x,successor->y) == nullptr){
+                    else if(successor->isClosed == false){
+
+                        double gNew = current->g + 1.0;
+                        double hNew = (sqrt((successor->x - end->x)*(successor->x - end->x)+ (successor->y - end->y)*(successor->y - end->y)));
+                        double fNew = gNew + hNew;
+
                         //node isnt on open list
-                        if(findNodeOnList(openList,successor->x,successor->y) == nullptr){
+                        if(successor->isOpen == false){
                             successor->f = fNew;
                             successor->h  = hNew;
                             successor->g  = gNew;
                             successor->parent = current;
+                            successor->isOpen = true;
                             openList.push_back(successor);
                         }
                         //node has a better G score then previously discovered
@@ -218,7 +216,7 @@ void solveAStar(Node *start,Node *end){
 int main(int argc, char** argv) {
     width = 50;
     height = 50;
-    CreateGraph(width, height);
+    CreateGraph();
     //DisplayGraph(width, height);
     // init GLUT and create window
     glutInit(&argc, argv);
