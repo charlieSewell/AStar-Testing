@@ -20,18 +20,10 @@ struct Node{
 
 
 };
-inline bool operator < (const Node& lhs, const Node& rhs){
-    return lhs.f < rhs.f;
-}
-inline bool operator == (const Node& lhs, const Node& rhs){
-    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
-}
-inline bool operator != (const Node& lhs, const Node& rhs){
-    return (lhs.x != rhs.x) || (lhs.y != rhs.y);
-}
+
 std::vector<Node> graph;
 int width,height;
-Node* traversePointer = &graph.back();
+
 void glInit(){
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glViewport(0, 0, width*10, height*10);
@@ -64,14 +56,8 @@ void CreateGraph(){
     input.close();
 
 };
-void DisplayGraph(int width,int height){
-    for(int i=0; i < width;i++) {
-        for (int j = 0; j < height; j++) {
-            std::cout << graph.at(i * 50 + j).isBlocked;
-        }
-        std::cout << std::endl;
-    }
-}
+
+//to do combine all node functions
 void drawNode(float x, float y, bool isWall){
     if(isWall){
         glColor3f(0.0f, 0.0f, 0.0f); // Red
@@ -167,7 +153,6 @@ void solveAStar(Node *start,Node *end){
         current = openList.front();
 
         current->isClosed = true;
-       //closedList.push_back(current);
         openList.erase(openList.begin());
         for(int i = -1; i <=1; i++){
             for(int j = -1; j <=1; j++){
@@ -223,14 +208,12 @@ int main(int argc, char** argv) {
     width = 50;
     height = 50;
     CreateGraph();
-    //DisplayGraph(width, height);
     // init GLUT and create window
     glutInit(&argc, argv);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(width * 10, height * 10);
     glutCreateWindow("Simple A* Visualiser");
     glInit();
-    // register callbacks
     glutDisplayFunc(display);
     solveAStar(&graph.front(),&graph.back());
     // enter GLUT event processing loop
