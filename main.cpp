@@ -7,6 +7,7 @@
 #include <GL/glut.h>
 #include <algorithm>
 
+
 struct Node{
     float g=0;
     float f=9999;
@@ -30,7 +31,7 @@ inline bool operator != (const Node& lhs, const Node& rhs){
 }
 std::vector<Node> graph;
 int width,height;
-
+Node* traversePointer = &graph.back();
 void glInit(){
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glViewport(0, 0, width*10, height*10);
@@ -119,9 +120,10 @@ void display(){
         for(int w=0; w < width;w++) {
             drawNode(w*10,h*10,graph.at(h * 50 + w).isBlocked);
             drawWireNode(w*10,h*10);
-            drawRoute(&graph.back());
+
         }
     }
+    drawRoute(&graph.back());
     glutSwapBuffers();
 }
 
@@ -210,6 +212,10 @@ void solveAStar(Node *start,Node *end){
             }
         }
     }
+    stopTime = clock();
+    totalTime = (stopTime - startTime) / (double)CLOCKS_PER_SEC;
+
+    std::cout << "Fail!! program took " << totalTime<< std::endl;
 }
 
 
@@ -222,7 +228,7 @@ int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(width * 10, height * 10);
-    glutCreateWindow("Lighthouse3D - GLUT Tutorial");
+    glutCreateWindow("Simple A* Visualiser");
     glInit();
     // register callbacks
     glutDisplayFunc(display);
