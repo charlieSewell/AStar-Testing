@@ -11,8 +11,6 @@ add_executable(astar main.cpp)
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 
-# Included these two lines:
-
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
